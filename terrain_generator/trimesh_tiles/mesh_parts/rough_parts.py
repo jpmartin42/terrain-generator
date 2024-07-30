@@ -27,7 +27,7 @@ def generate_perlin_tile_configs(
     dim,
     weight,
     height=0.5,
-    offset=0.0,
+    offset=1.0,
     seed=0,
     shape=(128, 128),
     res=(4, 4),
@@ -58,6 +58,7 @@ def generate_perlin_tile_configs(
         step_height = 1.0 / (shape[1] - 2)
         arrays = []
         ramp_patterns = ["flat", "wide", "corner", "corner_flipped"]
+        ramp_patterns = ["mountain"]
         for ramp_pattern in ramp_patterns:
             base_edge_array = np.clip(1.0 - (x**8 + y**8), 0.0, 1.0)
 
