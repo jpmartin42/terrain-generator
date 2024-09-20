@@ -39,29 +39,29 @@ from PIL import Image
 def encode_max_heights(terrain_height):
     hmax = terrain_height.max()
 
-    max_height = 5
+    max_height = 3
 
     max_level = 1
 
-    if(hmax >= 50):
-        print("Oh no, max height exceeds max value!")
-    elif(hmax > 40):
-        max_height = 50
+    if(hmax > 20):
+        print("Oh no, max height exceeds max value! Hmax = ", hmax)
+    elif(hmax > 15):
+        max_height = 20
         max_level = 6
-    elif(hmax > 30):
-        max_height = 40
+    elif(hmax > 12):
+        max_height = 15
         max_level = 5
 
-    elif(hmax > 20):
-        max_height = 30
+    elif(hmax > 9):
+        max_height = 12
         max_level = 4
 
-    elif(hmax > 10):
-        max_height = 20
+    elif(hmax > 6):
+        max_height = 9
         max_level = 3
 
-    elif(hmax > 5):
-        max_height = 10
+    elif(hmax > 3):
+        max_height = 6
         max_level = 2
 
     for i in range(max_level):
@@ -75,12 +75,12 @@ def encode_max_heights(terrain_height):
 
     return terrain_height, max_height
 
-def add_start_regions(terrain_heights, spawn_length, platform_ht = 0):
+def add_start_regions(terrain_heights, spawn_length:int, platform_ht = 0):
     xdim = terrain_heights.shape[0]
     ydim = terrain_heights.shape[1] + 2*spawn_length
 
-    leftplatform  = np.zeros(xdim, spawn_length)
-    rightplatform = np.full((xdim, spawn_length), platform_ht)
+    rightplatform = np.full((int(xdim), int(spawn_length)), platform_ht)
+    leftplatform  = np.full((int(xdim), int(spawn_length)), 0)
 
     # Add to array
     terrain_heights_mod = np.concatenate((leftplatform, terrain_heights, rightplatform), axis=1)
@@ -107,6 +107,8 @@ def generate_perlin2(
     file_index = 0,
     approx_res = 10,
 ):
+    meter = int(base_shape[0]/15)
+
     # Generate fractal noise instead of Perlin noise
     base = generate_perlin_noise_2d(base_shape, base_res, tileable=(True, True))
     base += generate_fractal_noise_2d(base_shape, noise_res, base_octaves, tileable=(True, True)) * base_fractal_weight
@@ -134,9 +136,14 @@ def generate_perlin2(
     
     terrain_height = base * base_scale + noise * noise_scale
 
-    terrain_height_mod = add_start_regions(terrain_height, 2*approx_res, slope_array.max())
+    mean_heights_ = np.mean(terrain_height, axis=0)
+
+    terrain_height_mod = add_start_regions(terrain_height, 2*meter, mean_heights_.max())
 
     terrain_height_mod, hmax = encode_max_heights(terrain_height_mod)
+
+    if(hmax > 18):
+        print("   Perlin, level ", level)
 
     # Add spawning regions at top and bottom of slope
 
@@ -166,6 +173,8 @@ def generate_box_grid(
     file_index = 0,
     approx_res = 10
 ):
+    meter = int(base_shape[0]/15)
+
     terrain_height = np.zeros(base_shape)
 
     box_size = int(base_shape[1]/n)
@@ -186,11 +195,14 @@ def generate_box_grid(
 
     # Add spawning regions at top and bottom of slope
     # Add spawning regions at top and bottom of slope
-    terrain_height_mod = add_start_regions(terrain_height, 2*approx_res, terrain_height.max())
+    terrain_height_mod = add_start_regions(terrain_height, 2*meter, terrain_height.max())
 
     terrain_height_mod, hmax = encode_max_heights(terrain_height_mod)
 
-    terrain_array = (((terrain_height - terrain_height.min()) / (terrain_height.max() - terrain_height.min())) * 255.9).astype(np.uint8)
+    if(hmax > 18):
+        print("   Box grid, level ", level)
+
+    terrain_array = (((terrain_height_mod - terrain_height_mod.min()) / (terrain_height_mod.max() - terrain_height_mod.min())) * 255.9).astype(np.uint8)
 
     # Set standard values for corner. It'll look weird but it guarantees that the height is the desired value
     # terrain_array[0,0] = np.array(255.9).astype(np.uint8)
@@ -209,16 +221,20 @@ if __name__ == "__main__":
     mesh_dir = "results/training_terrains"
 
     # Train with max height of at most 25 degrees
-    length     = 50
-    height_max = 50
+    length     = 17
+    height_max = 15
     
 
     for level in np.arange(0.0, 1.05, 0.05):
     # for level in [1.0]:
-        for i in range(10):
+        for i in range(20):
 
-            scale = random.randint(4, 8)
-            perlin_res = int(256 / int(2**(scale)))
+            scale = random.randint(4, 7)
+            scale2 = random.randint(4, 7)
+
+
+            perlin_scale = random.randint(4, 7)
+            perlin_res = int(256 / int(2**(perlin_scale)))
 
             # print(perlin_res)
 
@@ -226,7 +242,7 @@ if __name__ == "__main__":
 
             # Generate flat perlin terrain
             generate_perlin2(mesh_dir=mesh_dir, 
-                            base_shape=(256,256),
+                            base_shape=(128,128),
                             base_res = (perlin_res,perlin_res),
                             height_diff=0.0,
                             vertical_scale=1,
@@ -234,54 +250,57 @@ if __name__ == "__main__":
                             folder_name="00",
                             level = level,
                             base_scale = level*(2**(scale-4)),
-                            noise_scale = level*(2**(scale-4)),
+                            noise_scale = level*(2**(scale2-4)),
                             max_height = height_max,
                             file_index=i,
                             approx_res=10)
             
-            scale = random.randint(0, 4)
-            perlin_res = int(256 / int(2**(scale)))
+            scale = random.randint(1, 5)
+            scale2 = random.randint(4, 7)
+
+            perlin_scale = random.randint(4, 7)
+            perlin_res = int(256 / int(2**(perlin_scale)))
 
             hmax = random.uniform(0.5, 1) * level * height_max
             res = random.randint(1, 3)
 
             # Sloped perlin terrains
             generate_perlin2(mesh_dir=mesh_dir, 
-                            base_shape=(256,256),
+                            base_shape=(128,128),
                             base_res=(perlin_res,perlin_res),
                             height_diff=hmax,
                             vertical_scale=1,
                             horizontal_scale=0.0234375,
                             folder_name="01",
                             level = level,
-                            base_scale = level*(2**(scale-4)),
-                            noise_scale = level*(2**(scale-4)),
+                            base_scale = level*(2**(scale-5)),
+                            noise_scale = level*(2**(scale2-5)),
                             max_height = height_max,
                             file_index=i,
                             approx_res=10)
             
             hmax = random.uniform(0.5, 1) * level * height_max
-            res = random.randint(6, 8)
+            res = random.randint(4, 6)
 
             # Sloped box grids
             generate_box_grid(mesh_dir=mesh_dir,
                             n = 2**res,    
-                            base_shape = (4096,4096),
+                            base_shape = (1024,1024),
                             height_diff = hmax, # slope
                             height_std = 0.3*level,
                             folder_name = "02",
                             level = level,
                             max_height = height_max,
-                            file_index=i
+                            file_index=i,
                             approx_res=200)
 
             hmax = random.uniform(0.5, 1) * level * height_max
-            res = random.randint(6, 8)
+            res = random.randint(4, 6)
 
             # Normal box grids
             generate_box_grid(mesh_dir=mesh_dir,
                             n = 2**res,    
-                            base_shape = (4096,4096),
+                            base_shape = (1024,1024),
                             height_diff = 0, # slope
                             height_std = 0.5*level,
                             folder_name = "03",
@@ -291,12 +310,12 @@ if __name__ == "__main__":
                             approx_res=200)
             
             hmax = random.uniform(0.5, 1) * level * height_max
-            res = random.randint(6, 8)
+            res = random.randint(3, 5)
 
             # Stairs
             generate_box_grid(mesh_dir=mesh_dir,
                             n = 2**res,    
-                            base_shape = (4096,4096),
+                            base_shape = (1024,1024),
                             height_diff = hmax, # slope
                             height_std = 0.0,
                             folder_name = "04",
